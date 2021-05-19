@@ -1,0 +1,123 @@
+{
+  "ver": "2.0.10",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c",
+  "files": [],
+  "subMetas": {
+    "a2547": {
+      "importer": "gltf-mesh",
+      "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c@a2547",
+      "displayName": "",
+      "id": "a2547",
+      "name": "JGame_RPG_02.mesh",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.1.0",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "c0ff7": {
+      "importer": "gltf-embeded-image",
+      "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c@c0ff7",
+      "displayName": "",
+      "id": "c0ff7",
+      "name": "guns_2D_View_1.image",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".png",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "f53c6": {
+      "importer": "texture",
+      "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c@f53c6",
+      "displayName": "",
+      "id": "f53c6",
+      "name": "guns_2D_View_1.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 1,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "34c6a0d0-70b2-422e-9080-01f2563da76c@c0ff7"
+      },
+      "ver": "1.0.20",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "0b313": {
+      "importer": "gltf-material",
+      "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c@0b313",
+      "displayName": "",
+      "id": "0b313",
+      "name": "guns.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "8adf7": {
+      "importer": "gltf-scene",
+      "uuid": "34c6a0d0-70b2-422e-9080-01f2563da76c@8adf7",
+      "displayName": "",
+      "id": "8adf7",
+      "name": "JGame_RPG_02.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.12",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "guns_2D_View_1",
+        "uri": "34c6a0d0-70b2-422e-9080-01f2563da76c@c0ff7"
+      }
+    ],
+    "legacyFbxImporter": false,
+    "redirect": "34c6a0d0-70b2-422e-9080-01f2563da76c@8adf7",
+    "assetFinder": {
+      "meshes": [
+        "34c6a0d0-70b2-422e-9080-01f2563da76c@a2547"
+      ],
+      "skeletons": [],
+      "textures": [
+        "34c6a0d0-70b2-422e-9080-01f2563da76c@f53c6"
+      ],
+      "materials": [
+        "34c6a0d0-70b2-422e-9080-01f2563da76c@0b313"
+      ],
+      "scenes": [
+        "34c6a0d0-70b2-422e-9080-01f2563da76c@8adf7"
+      ]
+    }
+  }
+}
