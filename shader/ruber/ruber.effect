@@ -1,0 +1,151 @@
+// Effect Syntax Guide: https://github.com/cocos-creator/docs-3d/blob/master/zh/material-system/effect-syntax.md
+
+CCEffect %{
+  techniques:
+  - name: opaque
+    passes:
+    - vert: ruber-vs:vert # builtin header
+      frag: unlit-fs:frag
+      properties: &props
+        mainTexture:    { value: white }
+        mainColor:      { value: [1, 1, 1, 1], editor: { type: color } }
+        force:          { value: [0, 0, 0.5, 1] }
+        forceDir:       { value: [1, 1, 1, 1] }
+        forcePoint:     { value: [1, 1, 1, 1] }
+  - name: transparent
+    passes:
+    - vert: ruber-vs:vert # builtin header
+      frag: unlit-fs:frag
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendSrcAlpha: src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      properties: *props
+}%
+
+CCProgram ruber-vs %{
+  precision highp float;
+  #include <input-standard>
+  #include <cc-global>
+  #include <cc-local-batch>
+  #include <input-standard>
+
+  in vec4 a_color;
+
+  out vec3 v_position;
+  out vec3 v_normal;
+  out vec3 v_tangent;
+  out vec3 v_bitangent;
+  out vec2 v_uv;
+  out vec4 v_color;
+
+  uniform Props {
+    vec4 force;
+    vec4 forceDir;
+    vec4 forcePoint;
+  };
+  // uniform vec4 forceDir;
+  // uniform vec4 forcePoint;
+  
+  vec4 vert () {
+    StandardVertInput In;
+    CCVertInput(In);
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+    vec4 pos = matWorld * In.position;
+
+    v_position = pos.xyz;
+    v_normal = normalize((matWorldIT * vec4(In.normal, 0.0)).xyz);
+    v_tangent = normalize((matWorld * vec4(In.tangent.xyz, 0.0)).xyz);
+    v_bitangent = cross(v_normal, v_tangent) * In.tangent.w; // note the cross order
+
+    v_uv = a_texCoord;
+    v_color = a_color;
+
+
+    float centerY = 0.1;
+    float topY = .5;
+
+    vec4 lpos = In.position;
+    
+    //双头固定
+    // float tmp =  abs(lpos.y - centerY);
+    // float offsetY = centerY * centerY - tmp*tmp;
+    // if(lpos.y < centerY) {
+    //   offsetY = centerY * centerY - tmp*tmp;
+    // } else {
+    //   float ty = topY - centerY;
+    //   offsetY = ty * ty - tmp * tmp;
+    // }
+
+    // float ruberZ = 2. * offsetY * (sin(cc_time.x * 5.));
+    // float ruberZ = 2. * offsetY * force.x;
+
+    //单头固定
+    //y跟力度的映射
+    //y所需时间
+    float t = lpos.y/topY;
+    float tmpZ = lpos.z;
+
+
+    // float forceZ = 0.5;
+    // float forceY = -0.2;
+    // float startY = 0.5;
+
+    float forceZ = force.x;
+    float forceY = force.y;
+    float startY = force.z;
+    lpos.y = t * startY + forceY * t * t * 0.5;
+
+    float k = (startY+forceY*t) / (forceZ*t);
+    
+    float rad = atan(k);    
+    if(t == 0.) {
+      rad = 0.;
+    }
+    float flag = sign(forceZ);
+    if(flag == 0.){
+      flag = 1.;
+    }
+    lpos.y += flag * tmpZ * cos(rad);
+
+    //z跟t映射
+    float ruberZ = -forceZ * t * t * 0.5;
+    ruberZ += flag * tmpZ * sin(rad);
+
+    // float theta = sin(cc_time.x+lpos.y) /2.;
+    // float c = cos(theta);
+    // float s = sin(theta);
+    // mat3 m = mat3( c, 0, s, 0, 1, 0, -s, 0, c );
+    // vec3 transformed = vec3( lpos ) * m;
+    vec3 transformed = vec3( lpos.x, lpos.y,  ruberZ ) * force.w;
+
+    return cc_matProj * cc_matView * matWorld * vec4(transformed,lpos.w) ;
+
+
+    // return cc_matProj * cc_matView * matWorld * In.position ;
+  }
+}%
+
+CCProgram unlit-fs %{
+  precision highp float;
+  #include <output>
+
+  in vec2 v_uv;
+  uniform sampler2D mainTexture;
+
+  uniform Constant {
+    vec4 mainColor;
+  };
+
+  vec4 frag () {
+    vec4 col = mainColor * texture(mainTexture, v_uv);
+    // vec4 col = vec4(1.,0,1.,1.);
+    return CCFragOutput(col);
+  }
+}%

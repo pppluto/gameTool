@@ -1,0 +1,188 @@
+// Effect Syntax Guide: https://github.com/cocos-creator/docs-3d/blob/master/zh/material-system/effect-syntax.md
+
+CCEffect %{
+  techniques:
+  - name: opaque
+    passes:
+    - vert: ruber-vs:vert # builtin header
+      frag: unlit-fs:frag
+      properties: &props
+        mainTexture:    { value: white }
+        mainColor:      { value: [1, 1, 1, 1], editor: { type: color } }
+        force:          { value: [0, 0, 3.5, 1] }
+        forceDir:       { value: [1, 1, 1, 1] }
+        forcePoint:     { value: [1, 1, 1, 1] }
+  - name: transparent
+    passes:
+    - vert: ruber-vs:vert # builtin header
+      frag: unlit-fs:frag
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendSrcAlpha: src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      properties: *props
+}%
+
+CCProgram ruber-vs %{
+  precision highp float;
+  #include <input-standard>
+  #include <cc-global>
+  #include <cc-local-batch>
+  #include <input-standard>
+
+  in vec4 a_color;
+
+  out vec3 v_position;
+  out vec3 v_normal;
+  out vec3 v_tangent;
+  out vec3 v_bitangent;
+  out vec2 v_uv;
+  out vec4 v_color;
+
+  uniform Props {
+    vec4 force;
+    vec4 forceDir;
+    vec4 forcePoint;
+  };
+  // uniform vec4 forceDir;
+  // uniform vec4 forcePoint;
+  
+  vec4 vert () {
+    StandardVertInput In;
+    CCVertInput(In);
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+    vec4 pos = matWorld * In.position;
+
+    v_position = pos.xyz;
+    v_normal = normalize((matWorldIT * vec4(In.normal, 0.0)).xyz);
+    v_tangent = normalize((matWorld * vec4(In.tangent.xyz, 0.0)).xyz);
+    v_bitangent = cross(v_normal, v_tangent) * In.tangent.w; // note the cross order
+
+    v_uv = a_texCoord;
+    v_color = a_color;
+
+
+    //模型高度(放场景里测)
+    float maxH = 3.5;
+
+    //拿模型坐标，这样不用考虑节点旋转带来的变化
+    vec4 lpos = In.position;
+  
+    //注意确定模型坐标系跟cocos坐标系的对应关系
+    float t = lpos.z/maxH;
+    float tmpZ = lpos.y;
+
+    // float speedZ = 5.;
+    // float accZ = -10. * 5.;
+    // float speedY = 5.;
+    // float accY = sign(speedY) * abs(accZ / 5.);
+
+
+    float speedZ = force.z;
+    float accZ = force.y * 5.;
+    float speedY = force.x;
+    float accY = sign(speedY) * abs(accZ / 5.);
+
+
+    //分段函数
+    float a = 1.4;
+    float b = 1.8;
+
+    float pi = 3.1415926535;
+    // float offRad = pi / 4.;
+    float offRad = 0.;
+
+    float t1 = a / maxH;
+    float t2 = b / maxH;
+
+    float segmentK1 = speedZ / speedY; //第一段斜率
+    segmentK1 = sign(segmentK1) * max(10.,abs(segmentK1));
+    float segmentRad1 = atan(segmentK1);
+    segmentRad1 = abs(segmentRad1);
+    if(t == 0.) {
+      segmentRad1 = 0.;
+    }
+
+    segmentRad1 += offRad;
+
+    float mapY = 0.;
+    float mapZ = 0.;
+    float flag = sign(speedY);
+    if(flag == 0.){
+      flag = 1.;
+    }
+    vec2 controlPoint1 = vec2(a * sin(segmentRad1),a * cos(segmentRad1)); // z ,y
+
+    float ratio = max(1.,abs(speedY));
+    float ttmp = (t2-t1) * ratio;
+    float predictAccZ = -speedZ/ttmp;
+    accZ = max(accZ,predictAccZ);
+  
+    float tmpy = speedY * ttmp + accY * ttmp * ttmp * 0.5;
+    float tmpz = speedZ * ttmp + accZ * ttmp * ttmp * 0.5;
+    vec2 controlPoint2 = controlPoint1 + vec2(tmpz,tmpy); // z ,y
+
+    float segmentK2 = (speedZ + accZ * ttmp) / (speedY + accY * ttmp);
+    float segmentRad2 = atan(segmentK2);
+    segmentRad2 += offRad;
+
+    float k = segmentK1;
+    if ( t < t1){
+      mapZ = t * maxH * sin(segmentRad1);
+      mapY = t * maxH * cos(segmentRad1);
+    } else if ( t < t2 ) {
+      float tt2 = t - t1;
+      tt2 *= ratio;
+      k = (speedZ + accZ * tt2) / (speedY + accY * tt2);
+      mapY = controlPoint1.y + speedY * tt2 + accY * tt2 * tt2 * 0.5;
+      mapZ = controlPoint1.x + speedZ * tt2 + accZ * tt2 * tt2 * 0.5;
+    } else {
+      k = segmentK2;
+      mapZ = flag * (t * maxH - b) * sin(segmentRad2) + controlPoint2.x;
+      mapY = flag * (t * maxH - b) * cos(segmentRad2) + controlPoint2.y;
+    }
+
+    //抛物线
+    float rad = atan(k);
+    if(t == 0.) {
+      rad = 0.;
+    }
+    rad += offRad;
+    //返回 -1,0,1
+   
+
+    mapZ -= flag * tmpZ * cos(rad);
+
+    mapY += flag * tmpZ * sin(rad);
+
+    vec3 transformed = vec3( lpos.x,mapY,mapZ ) * force.w;
+    return cc_matProj * cc_matView * matWorld * vec4(transformed,lpos.w) ;
+
+
+    // return cc_matProj * cc_matView * matWorld * In.position ;
+  }
+}%
+
+CCProgram unlit-fs %{
+  precision highp float;
+  #include <output>
+
+  in vec2 v_uv;
+  uniform sampler2D mainTexture;
+
+  uniform Constant {
+    vec4 mainColor;
+  };
+
+  vec4 frag () {
+    vec4 col = mainColor * texture(mainTexture, v_uv);
+    // vec4 col = vec4(1.,0,1.,1.);
+    return CCFragOutput(col);
+  }
+}%
