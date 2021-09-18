@@ -1,0 +1,59 @@
+// Copyright, J.C, Sep., 2021, MIT license
+
+CCEffect %{
+  techniques:
+  - name: vignette-effect
+    passes:
+    - vert: vignette-vs:vert
+      frag: vignette-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      properties:
+        borderExtent: { value: 0.04, target: vignette.x, editor: { min: 0., max: .5, step: .01, slide: true } }
+        borderHardness: { value: 0.15, target: vignette.y, editor: { min: 0.1, max: 1., step: .05, slide: true } }
+}%
+
+CCProgram vignette-vs %{
+  precision highp float;
+  #include <decode>
+  #include <cc-global>
+
+  out vec2 v_uv;
+
+  vec4 vert() {
+    v_uv = a_texCoord;
+    CC_HANDLE_RT_SAMPLE_FLIP(v_uv);
+
+    vec4 position;
+    CCDecode(position);
+
+    return position;
+  }
+}%
+
+CCProgram vignette-fs %{
+  precision highp float;
+
+  in vec2 v_uv;
+
+  uniform sampler2D inputTexture;
+  uniform vignetteParams {
+    vec4 vignette;
+  };
+
+  float bd(in vec2 p, in vec4 r, float s) {
+    vec4 v4 = vec4(r.xy, 1. - (r.xy + r.zw));
+    vec4 f = smoothstep(v4 - s, v4 + s, vec4(p, 1. - p));
+    return f.x * f.y * f.z * f.w;
+  }
+
+  vec4 frag() {
+    vec3 color = texture(inputTexture, v_uv).rgb;
+
+    float vig = bd(v_uv, vec4(vec2(vignette.x), vec2(1. - vignette.x * 2.)), vignette.y);
+    color *= vig;
+
+    return vec4(color, 1.);
+  }
+}%

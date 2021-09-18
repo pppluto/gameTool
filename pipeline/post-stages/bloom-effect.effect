@@ -1,0 +1,199 @@
+// Copyright, J.C, Sep., 2021, MIT license
+
+CCEffect %{
+  techniques:
+  - name: bloom-effect
+    passes:
+    - vert: bloom-vs:vert
+      frag: extract-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      properties:
+        threshold: { value: 1., target: bloomThreshold.x, editor: { slide: true, min: 0, max: 2, step: .05 } }
+    - vert: dual-vs:down
+      frag: dual-fs:down
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      properties: &1
+        blurRadius: { value: 0., target: textureSize.z, editor: { slide: true, min: 0, max: 5, step: .05 } }
+    - vert: dual-vs:up
+      frag: dual-fs:up
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      properties: *1
+    - vert: bloom-vs:vert
+      frag: merge-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      properties:
+        exposure: { value: 1., target: mergeExposure.x, editor: { slide: true, min: 0, max: 10, step: .1 } }
+}%
+
+CCProgram bloom-vs %{
+  precision highp float;
+  #include <decode>
+  #include <cc-global>
+
+  out vec2 v_uv;
+
+  vec4 vert() {
+    v_uv = a_texCoord;
+    CC_HANDLE_RT_SAMPLE_FLIP(v_uv);
+
+    vec4 position;
+    CCDecode(position);
+
+    return position;
+  }
+}%
+
+CCProgram extract-fs %{
+  precision highp float;
+
+  in vec2 v_uv;
+
+  uniform sampler2D inputTexture;
+  uniform extractParams {
+    vec4 bloomThreshold;
+  };
+
+  float getLuminance(const in vec3 color) {
+    return dot(color, vec3(.2126, .7152, .0722));
+  }
+
+  vec3 extractBright(const in vec3 color) {
+      return clamp(color * clamp(getLuminance(color) - bloomThreshold.x, 0., 1.), 0., 1.);
+  }
+
+  vec4 bloomExtract() {
+    vec4 tex = texture(inputTexture, v_uv);
+
+    float alpha = tex.a;
+    if (alpha == 0.)
+      return vec4(vec3(0.), 1.);
+    
+    return vec4(extractBright(tex.rgb * alpha), 1.);
+  }
+
+  vec4 frag() {
+    return bloomExtract();
+  }
+}%
+
+CCProgram dual-vs %{
+  precision highp float;
+  #include <decode>
+  #include <cc-global>
+
+  out vec2 v_uv;
+  out vec4 v_ouv1;
+  out vec4 v_ouv2;
+  out vec4 v_ouv3;
+  out vec4 v_ouv4;
+
+  uniform dualParams {
+    mediump vec4 textureSize;
+  };
+
+  vec4 down() {
+    v_uv = a_texCoord;
+    CC_HANDLE_RT_SAMPLE_FLIP(v_uv);
+
+    vec2 size = (1. / textureSize.xy) * .5;
+    vec2 offset = vec2(1. + textureSize.z);
+    v_ouv1.xy = v_uv - size * offset;
+		v_ouv1.zw = v_uv + size * offset;
+		v_ouv2.xy = v_uv - vec2(size.x, -size.y) * offset;
+		v_ouv2.zw = v_uv + vec2(size.x, -size.y) * offset;
+		
+    vec4 position;
+    CCDecode(position);
+
+    return position;
+  }
+
+  vec4 up() {
+    v_uv = a_texCoord;
+    CC_HANDLE_RT_SAMPLE_FLIP(v_uv);
+
+    vec2 size = (1. / textureSize.xy) * .5;
+    vec2 offset = vec2(1. + textureSize.z);
+		v_ouv1.xy = v_uv + vec2(-size.x * 2., 0.) * offset;
+		v_ouv1.zw = v_uv + vec2(-size.x, size.y) * offset;
+		v_ouv2.xy = v_uv + vec2(0., size.y * 2.) * offset;
+		v_ouv2.zw = v_uv + size * offset;
+		v_ouv3.xy = v_uv + vec2(size.x * 2., 0.) * offset;
+		v_ouv3.zw = v_uv + vec2(size.x, -size.y) * offset;
+		v_ouv4.xy = v_uv + vec2(0., -size.y * 2.) * offset;
+		v_ouv4.zw = v_uv - size * offset;
+
+    vec4 position;
+    CCDecode(position);
+
+    return position;
+  }
+}%
+
+CCProgram dual-fs %{
+  precision highp float;
+  
+  in vec2 v_uv;
+  in vec4 v_ouv1;
+  in vec4 v_ouv2;
+  in vec4 v_ouv3;
+  in vec4 v_ouv4;
+
+  uniform sampler2D inputTexture;
+  
+  vec4 downSample() {
+    vec4 sum = texture(inputTexture, v_uv) * 4.;
+    sum += texture(inputTexture, v_ouv1.xy);
+    sum += texture(inputTexture, v_ouv1.zw);
+    sum += texture(inputTexture, v_ouv2.xy);
+    sum += texture(inputTexture, v_ouv2.zw);
+    return sum * .125;
+  }
+
+  vec4 down() {
+    return downSample();
+  }
+
+  vec4 upSample() {
+    vec4 sum = texture(inputTexture, v_ouv1.xy);
+    sum += texture(inputTexture, v_ouv1.zw) * 2.;
+    sum += texture(inputTexture, v_ouv2.xy);
+    sum += texture(inputTexture, v_ouv2.zw) * 2.;
+    sum += texture(inputTexture, v_ouv3.xy);
+    sum += texture(inputTexture, v_ouv3.zw) * 2.;
+    sum += texture(inputTexture, v_ouv4.xy);
+    sum += texture(inputTexture, v_ouv4.zw) * 2.;
+    return sum * 0.083333;
+  }
+
+  vec4 up() {
+    return upSample();
+  }
+}%
+
+CCProgram merge-fs %{
+  precision highp float;
+  
+  in vec2 v_uv;
+
+  uniform sampler2D originTexture;
+  uniform sampler2D bloomTexture;
+  uniform mergeParams {
+    vec4 mergeExposure;
+  };
+
+  vec4 frag() {
+    vec4 color1 = texture(originTexture, v_uv);
+    vec4 color2 = texture(bloomTexture, v_uv);
+
+    return color1 + color2 * mergeExposure.x;
+  }
+}%
