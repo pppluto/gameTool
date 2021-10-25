@@ -1,0 +1,52 @@
+{
+  "__type__": "cc.Material",
+  "_name": "",
+  "_objFlags": 0,
+  "_native": "",
+  "_effectAsset": {
+    "__uuid__": "b4dcbf89-0a15-4dee-9657-f6d809245a3d"
+  },
+  "_techIdx": 0,
+  "_defines": [
+    {},
+    {
+      "USE_OUTLINE_PASS": true
+    }
+  ],
+  "_states": [
+    {
+      "rasterizerState": {},
+      "depthStencilState": {
+        "stencilTestFront": true,
+        "stencilPassOpFront": 2
+      },
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
+    },
+    {
+      "rasterizerState": {
+        "cullMode": 2
+      },
+      "depthStencilState": {
+        "depthTest": false,
+        "depthWrite": false,
+        "stencilTestFront": true,
+        "stencilFuncFront": 4
+      },
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
+    }
+  ],
+  "_props": [
+    {},
+    {
+      "lineWidth": 15
+    }
+  ]
+}
