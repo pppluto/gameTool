@@ -1,0 +1,133 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_extra_1 = require("fs-extra");
+const path_1 = require("path");
+const utils_1 = require("../../utils");
+const fs_1 = require("fs");
+function getComScript(name = 'NewClass', scene = "GameScene") {
+    let temp = `
+    import { MVVM } from "@core/mvvm/MVVM";
+    import { GameBase, GameMode } from "@framework/GameBase";
+
+export class ${name} extends GameBase {
+
+    public dataModel = new MVVM({ step: 0 });
+    dependScene = "${scene}";
+    /**
+    * 初始化数据层、监听事件等
+    * 
+    */
+    public onInit() {
+
+    }
+    public onData(params: any): void {
+        
+    }
+    /**
+     * 进入游戏，可以是切换cocos的scene或者用guiscene切换
+     * @param next 
+     */
+    public onEnter( next: (args) => void) {
+
+        next({});
+    }
+
+    /**
+     * 退出游戏
+     * @param next 
+     */
+    public onExit(next: (args) => void) {
+
+        next({});
+    }
+
+}
+    `;
+    return temp;
+}
+function getWechatSubpackageMetaUserData() {
+    return {
+        "compressionType": {
+            "wechatgame": "subpackage"
+        },
+        "isRemoteBundle": {
+            "wechatgame": false
+        },
+        "isBundle": true,
+    };
+}
+let comp = {
+    template: (0, fs_extra_1.readFileSync)((0, path_1.join)(__dirname, '../../../static/template/vue/create-project.html'), 'utf-8'),
+    data() {
+        return {
+            inputName: '',
+            inputSceneName: '',
+            display: '',
+            showLoading: false
+        };
+    },
+    methods: {
+        onChangeTypeSelect(index) {
+            this.typeSelectIndex = Number(index);
+        },
+        async onClickCreate() {
+            const name = (0, utils_1.stringCase)(this.inputName);
+            const dependScene = this.inputSceneName;
+            const folderPath = `db://assets/${name}`;
+            // if (/^[a-z][a-z0-9-]*[a-z0-9]+$/.test(name) === false) {
+            //     this.display = '[错误] 名字不合法\n1、不能以数字开头\n2、不能以分隔符开头或结尾';
+            //     return;
+            // }
+            if (name === 'all') {
+                this.display = '[错误] 名字不合法\n1、不能使用all作为名字';
+                return;
+            }
+            const baseScriptUrl = `${folderPath}/scripts/${name}.ts`;
+            // 创建前确认
+            const createResponse = await Editor.Dialog.info(`请确认:项目${name},dependScene:${dependScene}`, { detail: name, buttons: ['创建并打开', '仅创建', '取消'], default: 0, cancel: 2 });
+            if (createResponse.response == 2) {
+                this.display = 'createResponse';
+                return;
+            }
+            this.display = '创建中';
+            this.showLoading = true;
+            // 创建目录
+            if (!await (0, utils_1.createFolderByUrl)(folderPath, { subPaths: ['scripts', 'scripts/views', 'res'] })) {
+                this.showLoading = false;
+                this.display = `[错误] 创建目录失败\n${folderPath}`;
+                return;
+            }
+            // // 设置native分包
+            await (0, utils_1.delayFileExistsByUrl)(`${folderPath}.meta`);
+            const queryNativeMeta = await Editor.Message.request('asset-db', 'query-asset-meta', folderPath).catch(_ => null);
+            if (!queryNativeMeta) {
+                this.showLoading = false;
+                this.display = '[错误] 设置native分包配置失败';
+                return;
+            }
+            queryNativeMeta.userData = getWechatSubpackageMetaUserData();
+            await Editor.Message.request('asset-db', 'save-asset-meta', folderPath, JSON.stringify(queryNativeMeta)).catch(_ => null);
+            // 创建script
+            if (!(0, fs_1.existsSync)((0, utils_1.convertUrlToPath)(baseScriptUrl))) {
+                const createScriptResult = await Editor.Message.request('asset-db', 'create-asset', baseScriptUrl, getComScript(name, dependScene)).catch(_ => null);
+                if (!createScriptResult) {
+                    this.showLoading = false;
+                    this.display = `[错误] 创建脚本失败\n${baseScriptUrl}`;
+                    return;
+                }
+            }
+            this.showLoading = false;
+            this.display = `[成功] 创建成功\n${folderPath}`;
+            // 是否打开
+            if (createResponse.response == 0) {
+                Editor.Message.request('asset-db', 'open-asset', baseScriptUrl);
+            }
+        }
+    },
+    watch: {},
+    created() { },
+    mounted() {
+        console.log("Mount componens");
+    },
+};
+exports.default = comp;

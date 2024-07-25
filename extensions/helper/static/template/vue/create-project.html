@@ -1,0 +1,27 @@
+<div class="home">
+    <ui-section header="输入" expand>
+        <ui-prop class="content-item">
+            <ui-label slot="label">名字</ui-label>
+            <ui-input id="name" slot="content" placeholder="输入游戏玩法名字如: SPX" :value="inputName"
+                @change="inputName=$event.target.value" show-clear>
+            </ui-input>
+        </ui-prop>
+        <ui-prop class="content-item">
+            <ui-label slot="label">gui scene</ui-label>
+            <ui-input id="name" slot="content" placeholder="输入初始scene: SPXLoginScene" :value="inputSceneName"
+                @change="inputName=$event.target.value" show-clear>
+            </ui-input>
+        </ui-prop>
+        <ui-button class="content-item" type="primary" @confirm="onClickCreate">
+            创建
+        </ui-button>
+    </ui-section>
+
+    <ui-section header="输出" expand>
+        <ui-label :value="display" style="white-space: pre"></ui-label>
+    </ui-section>
+
+    <div class="loading" v-show="showLoading">
+        <ui-loading class="loading-item"></ui-loading>
+    </div>
+</div>
